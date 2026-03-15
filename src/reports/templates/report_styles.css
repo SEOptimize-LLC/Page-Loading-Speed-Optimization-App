@@ -391,6 +391,37 @@ img {
     font-size: 15px;
     line-height: 1.7;
     color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.executive-summary h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 20px 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--brand-color-light);
+}
+
+.executive-summary h3:first-child {
+    margin-top: 0;
+}
+
+.executive-summary ul,
+.executive-summary ol {
+    margin: 8px 0 16px 0;
+    padding-left: 20px;
+}
+
+.executive-summary li {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.executive-summary strong {
+    color: var(--brand-color-dark);
 }
 
 .top-actions {

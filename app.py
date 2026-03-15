@@ -1095,8 +1095,8 @@ def main() -> None:
             st.metric("Total Issues", len(result.issues))
 
         # --- Tabs ---
-        tab1, tab2, tab3, tab4 = st.tabs(
-            ["Summary", "Issues", "Screenshots", "Report"]
+        tab1, tab2, tab3 = st.tabs(
+            ["Summary", "Issues", "Report"]
         )
 
         # =============================================================
@@ -1105,7 +1105,7 @@ def main() -> None:
         with tab1:
             # Executive summary
             if result.executive_summary:
-                st.markdown(result.executive_summary)
+                st.markdown(result.executive_summary, unsafe_allow_html=True)
             else:
                 if not get_secret("OPENROUTER_API_KEY"):
                     st.info(
@@ -1218,7 +1218,7 @@ def main() -> None:
                     st.subheader(f"Critical Issues ({len(critical)})")
                     for issue in critical:
                         with st.expander(
-                            f":red_circle: **{issue.title}**",
+                            f"\U0001f534 **{issue.title}**",
                             expanded=False,
                         ):
                             render_issue_detail(issue)
@@ -1229,7 +1229,7 @@ def main() -> None:
                     st.subheader(f"Important Issues ({len(important)})")
                     for issue in important:
                         with st.expander(
-                            f":orange_circle: **{issue.title}**",
+                            f"\U0001f7e0 **{issue.title}**",
                             expanded=False,
                         ):
                             render_issue_detail(issue)
@@ -1240,52 +1240,15 @@ def main() -> None:
                     st.subheader(f"Minor Issues ({len(minor)})")
                     for issue in minor:
                         with st.expander(
-                            f":large_yellow_circle: **{issue.title}**",
+                            f"\U0001f7e1 **{issue.title}**",
                             expanded=False,
                         ):
                             render_issue_detail(issue)
 
         # =============================================================
-        # TAB 3: Screenshots
+        # TAB 3: Report
         # =============================================================
         with tab3:
-            # Filmstrip
-            if result.filmstrip_frames:
-                st.subheader("Loading Timeline (Filmstrip)")
-
-                # Display filmstrip frames in a row of columns
-                # Limit to ~10 frames for readability
-                frames_to_show = result.filmstrip_frames
-                if len(frames_to_show) > 10:
-                    # Sample evenly
-                    step = len(frames_to_show) // 10
-                    frames_to_show = frames_to_show[::step][:10]
-
-                if frames_to_show:
-                    cols = st.columns(len(frames_to_show))
-                    for i, frame in enumerate(frames_to_show):
-                        with cols[i]:
-                            timing = frame.get("timing_ms", 0)
-                            data_uri = frame.get("data_uri", "")
-                            if data_uri:
-                                st.image(data_uri, width=120)
-                                st.caption(format_ms(timing))
-            else:
-                st.info("No filmstrip data available.")
-
-            st.divider()
-
-            # Final screenshot
-            if result.final_screenshot:
-                st.subheader("Final Rendered Page")
-                st.image(result.final_screenshot, width=400)
-            else:
-                st.info("No final screenshot available.")
-
-        # =============================================================
-        # TAB 4: Report
-        # =============================================================
-        with tab4:
             st.subheader("Generated Report")
 
             # Download buttons

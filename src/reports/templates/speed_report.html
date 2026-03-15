@@ -312,9 +312,15 @@
             </div>
             {% endif %}
 
-            {# Threshold meter — use field value when available #}
+            {# Threshold meter — use field value when available, fall back to lab #}
             {% if cwv.threshold_good is defined and cwv.threshold_poor is defined %}
-            {% set meter_value = cwv.field_value_raw | default(cwv.lab_value | default(0)) %}
+            {% if cwv.field_value_raw is not none %}
+                {% set meter_value = cwv.field_value_raw %}
+            {% elif cwv.lab_value is not none %}
+                {% set meter_value = cwv.lab_value %}
+            {% else %}
+                {% set meter_value = 0 %}
+            {% endif %}
             {% set meter_max = cwv.threshold_poor * 2 %}
             {% if meter_value is defined and meter_value is not none and meter_value > meter_max %}
                 {% set meter_max = meter_value * 1.2 %}

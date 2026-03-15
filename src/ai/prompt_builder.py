@@ -241,6 +241,7 @@ Return ONLY the JSON array. No commentary before or after."""
 - Avoid technical jargon — explain in business terms when possible.
 - Be honest about the current state but optimistic about improvement potential.
 - Use concrete numbers and metrics, not vague statements.
+- Structure the summary with HTML headings (<h3>), short paragraphs (<p>), and bullet lists (<ul><li>) for easy scanning. Never write a single long paragraph — break it up.
 
 ## Output Format
 
@@ -248,7 +249,7 @@ Return a JSON object with this exact schema:
 
 ```json
 {
-  "summary": "2-3 paragraph executive summary. First paragraph: current state assessment. Second paragraph: key problems found. Third paragraph: recommended path forward and expected outcomes.",
+  "summary": "Executive summary as structured HTML. Use these elements for readability: <h3> for section headings (e.g. 'Current State', 'Key Problems', 'Recommended Path Forward'), <p> for short paragraphs (2-3 sentences max each), <ul><li> for bullet-point lists of key findings. Keep it scannable — no walls of text. Include concrete numbers and metrics throughout.",
   "top_actions": [
     "Action 1 — the single most impactful thing to do first",
     "Action 2 — second most impactful",
