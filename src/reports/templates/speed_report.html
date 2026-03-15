@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Speed Optimization Report — {{ url }}</title>
+    <style>{{ css_content }}</style>
+</head>
+<body>
+
+{# =====================================================================
+   MACROS — Reusable template components
+   ===================================================================== #}
+
+{# ---- Score Gauge (circular conic-gradient ring) ---- #}
+{% macro gauge(score, label, small=false) %}
+{% set score_val = score | default(0) | int %}
+{% if score_val >= 90 %}
+    {% set gauge_color = "#0cce6b" %}
+{% elif score_val >= 50 %}
+    {% set gauge_color = "#ffa400" %}
+{% else %}
+    {% set gauge_color = "#ff4e42" %}
+{% endif %}
+{% set deg = (score_val * 3.6) | round | int %}
+<div class="score-gauge">
+    <div class="score-gauge__ring{% if small %} score-gauge__ring--small{% endif %}"
+         style="background: conic-gradient({{ gauge_color }} 0deg {{ deg }}deg, #e2e8f0 {{ deg }}deg 360deg);">
+        <div class="score-gauge__inner">
+            <span class="score-gauge__value" style="color: {{ gauge_color }};">{{ score_val }}</span>
+        </div>
+    </div>
+    <span class="score-gauge__label">{{ label }}</span>
+</div>
+{% endmacro %}
+
+{# ---- CWV Status Badge ---- #}
+{% macro status_badge(status) %}
+{% set status_str = status | default("poor") | string | lower %}
+{% if status_str == "good" %}
+<span class="cwv-card__status-badge cwv-card__status-badge--good">Good</span>
+{% elif status_str in ["needs-improvement", "needs_improvement", "average"] %}
+<span class="cwv-card__status-badge cwv-card__status-badge--needs-improvement">Needs Work</span>
+{% else %}
+<span class="cwv-card__status-badge cwv-card__status-badge--poor">Poor</span>
+{% endif %}
+{% endmacro %}
+
+{# ---- CWV Value Color Class ---- #}
+{% macro value_color_class(status) %}
+{% set status_str = status | default("poor") | string | lower %}
+{% if status_str == "good" %}cwv-card__value--good{% elif status_str in ["needs-improvement", "needs_improvement", "average"] %}cwv-card__value--needs-improvement{% else %}cwv-card__value--poor{% endif %}
+{% endmacro %}
+
+{# ---- CWV Meter (horizontal bar with zones and indicator) ---- #}
+{% macro cwv_meter(lab_value, threshold_good, threshold_poor, max_value) %}
+{% set max_val = max_value | default(threshold_poor * 2) | float %}
+{% if max_val <= 0 %}{% set max_val = 1.0 %}{% endif %}
+{% set good_pct = ((threshold_good / max_val) * 100) | round | int %}
+{% set mid_pct = (((threshold_poor - threshold_good) / max_val) * 100) | round | int %}
+{% set poor_pct = 100 - good_pct - mid_pct %}
+{% if poor_pct < 0 %}{% set poor_pct = 0 %}{% endif %}
+{% set indicator_pct = ((lab_value | default(0) | float / max_val) * 100) | round(1) %}
+{% if indicator_pct > 100 %}{% set indicator_pct = 100 %}{% endif %}
+{% if indicator_pct < 0 %}{% set indicator_pct = 0 %}{% endif %}
+<div class="cwv-meter">
+    <div class="cwv-meter__track">
+        <div class="cwv-meter__zone cwv-meter__zone--good" style="width: {{ good_pct }}%;"></div>
+        <div class="cwv-meter__zone cwv-meter__zone--needs-improvement" style="width: {{ mid_pct }}%;"></div>
+        <div class="cwv-meter__zone cwv-meter__zone--poor" style="width: {{ poor_pct }}%;"></div>
+    </div>
+    <div class="cwv-meter__indicator" style="left: {{ indicator_pct }}%;"></div>
+    <div class="cwv-meter__thresholds">
+        <span class="cwv-meter__threshold-label">0</span>
+        <span class="cwv-meter__threshold-label">{{ threshold_good }}</span>
+        <span class="cwv-meter__threshold-label">{{ threshold_poor }}</span>
+    </div>
+</div>
+{% endmacro %}
+
+{# ---- Issue Card ---- #}
+{% macro issue_card(issue, severity_class) %}
+<div class="issue-card issue-card--{{ severity_class }} no-break">
+    {# Header: Title + CWV impact badges #}
+    <div class="issue-card__header">
+        <h4 class="issue-card__title">{{ issue.title | default("Untitled Issue") }}</h4>
+        {% if issue.cwv_impact %}
+        <div class="issue-card__impact-badges">
+            {% for metric in issue.cwv_impact %}
+            <span class="impact-badge">{{ metric }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# Screenshot (if available) #}
+    {% if issue.screenshot_data %}
+    <div class="issue-card__screenshot">
+        <img src="{{ issue.screenshot_data }}" alt="Screenshot of the issue">
+        {% if issue.screenshot_caption %}
+        <div class="issue-card__screenshot-caption">{{ issue.screenshot_caption }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# What's wrong #}
+    {% if issue.what_is_wrong %}
+    <div class="issue-section">
+        <div class="issue-section__label">What's Wrong</div>
+        <div class="issue-section__content">{{ issue.what_is_wrong }}</div>
+    </div>
+    {% endif %}
+
+    {# Why it matters #}
+    {% if issue.why_it_matters %}
+    <div class="issue-section">
+        <div class="issue-section__label">Why It Matters</div>
+        <div class="issue-section__content">{{ issue.why_it_matters }}</div>
+    </div>
+    {% endif %}
+
+    {# How to fix #}
+    {% if issue.how_to_fix %}
+    <div class="issue-section">
+        <div class="issue-section__label">How to Fix</div>
+        <div class="issue-section__content">
+            <ol>
+                {% for step in issue.how_to_fix %}
+                <li>{{ step }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    {% endif %}
+
+    {# CMS-specific fix (highlighted box) #}
+    {% if issue.cms_specific_fix %}
+    <div class="cms-fix-box">
+        <div class="cms-fix-box__label">{{ cms_name | default("CMS") | title }} Specific Fix</div>
+        <div class="cms-fix-box__content">{{ issue.cms_specific_fix }}</div>
+    </div>
+    {% endif %}
+
+    {# Code example #}
+    {% if issue.code_example %}
+    <div class="issue-section">
+        <div class="issue-section__label">Code Example</div>
+        <div class="code-block">
+            <code>{{ issue.code_example }}</code>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Affected resources #}
+    {% if issue.affected_resources %}
+    <div class="issue-section affected-resources">
+        <div class="issue-section__label">Affected Resources ({{ issue.affected_resources | length }})</div>
+        <ul class="affected-resources__list">
+            {% for resource in issue.affected_resources[:15] %}
+            <li>{{ resource }}</li>
+            {% endfor %}
+            {% if issue.affected_resources | length > 15 %}
+            <li class="text-muted">... and {{ issue.affected_resources | length - 15 }} more</li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {# Meta: estimated improvement + effort level #}
+    {% if issue.estimated_improvement or issue.effort_level %}
+    <div class="issue-card__meta">
+        {% if issue.estimated_improvement %}
+        <span class="meta-tag meta-tag--improvement">{{ issue.estimated_improvement }}</span>
+        {% endif %}
+        {% if issue.effort_level %}
+        <span class="meta-tag meta-tag--effort-{{ issue.effort_level | default('medium') | lower }}">
+            Effort: {{ issue.effort_level | default("Medium") | title }}
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# =====================================================================
+   1. COVER PAGE
+   ===================================================================== #}
+<div class="cover-page page-break-after">
+    {# Logo #}
+    {% if company_logo %}
+    <img src="{{ company_logo }}" alt="{{ company_name | default('Speed Audit') }} Logo" class="cover-logo">
+    {% endif %}
+
+    <h1 class="cover-title">Page Speed Optimization Report</h1>
+    <p class="cover-subtitle">Comprehensive performance analysis and actionable recommendations</p>
+
+    <div class="cover-url">{{ url | default("N/A") }}</div>
+
+    <p class="cover-date">Generated on {{ date | default("N/A") }}</p>
+
+    {# Mobile & Desktop score gauges #}
+    <div class="cover-scores">
+        {{ gauge(mobile_score | default(0), "Mobile") }}
+        {{ gauge(desktop_score | default(0), "Desktop") }}
+    </div>
+
+    {# CWV pass/fail badge #}
+    {% if cwv_pass is defined %}
+    <div class="mt-lg">
+        {% if cwv_pass %}
+        <span class="cwv-badge cwv-badge--pass">
+            <span class="cwv-badge-icon">&#10003;</span>
+            Core Web Vitals Assessment: PASSED
+        </span>
+        {% else %}
+        <span class="cwv-badge cwv-badge--fail">
+            <span class="cwv-badge-icon">&#10007;</span>
+            Core Web Vitals Assessment: FAILED
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# Secondary scores (Accessibility, SEO, Best Practices) #}
+    {% if accessibility_score is defined or seo_score is defined or best_practices_score is defined %}
+    <div class="secondary-scores">
+        {% if accessibility_score is defined and accessibility_score is not none %}
+        {{ gauge(accessibility_score, "Accessibility", small=true) }}
+        {% endif %}
+        {% if seo_score is defined and seo_score is not none %}
+        {{ gauge(seo_score, "SEO", small=true) }}
+        {% endif %}
+        {% if best_practices_score is defined and best_practices_score is not none %}
+        {{ gauge(best_practices_score, "Best Practices", small=true) }}
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+
+{# =====================================================================
+   2. EXECUTIVE SUMMARY
+   ===================================================================== #}
+<div class="report-container">
+<div class="section page-break-before">
+    <div class="section-header">
+        <span class="section-number">1</span>
+        <h2>Executive Summary</h2>
+    </div>
+
+    <div class="executive-summary">
+        {% if executive_summary %}
+        {{ executive_summary }}
+        {% else %}
+        <p>No executive summary is available for this analysis. Review the detailed findings below for actionable optimization recommendations.</p>
+        {% endif %}
+    </div>
+
+    {# Top 3 action items #}
+    {% if top_actions %}
+    <div class="top-actions mt-lg">
+        <div class="top-actions__title">Top Priority Actions</div>
+        <ol>
+            {% for action in top_actions %}
+            <li>{{ action }}</li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+</div>
+
+
+{# =====================================================================
+   3. CORE WEB VITALS ASSESSMENT
+   ===================================================================== #}
+<div class="section page-break-before">
+    <div class="section-header">
+        <span class="section-number">2</span>
+        <h2>Core Web Vitals Assessment</h2>
+    </div>
+
+    {% if cwv_assessments %}
+    <div class="cwv-grid">
+        {% for cwv in cwv_assessments %}
+        <div class="cwv-card no-break">
+            <div class="cwv-card__header">
+                <span class="cwv-card__metric-name">{{ cwv.metric_name | default("Metric") }}</span>
+                {{ status_badge(cwv.status) }}
+            </div>
+
+            <div class="cwv-card__value {{ value_color_class(cwv.status) }}">
+                {{ cwv.lab_display | default(cwv.lab_value | default("N/A")) }}
+            </div>
+
+            {# Field vs lab comparison #}
+            {% if cwv.field_value is defined and cwv.field_value is not none %}
+            <div class="cwv-card__field-comparison">
+                Field data (real users): <span>{{ cwv.field_value }}</span>
+                {% if cwv.field_category %}
+                — {{ cwv.field_category }}
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="cwv-card__field-comparison">
+                Field data: Not available (lab data shown)
+            </div>
+            {% endif %}
+
+            {# Threshold meter #}
+            {% if cwv.threshold_good is defined and cwv.threshold_poor is defined %}
+            {% set meter_max = cwv.threshold_poor * 2 %}
+            {% if cwv.lab_value is defined and cwv.lab_value is not none and cwv.lab_value > meter_max %}
+                {% set meter_max = cwv.lab_value * 1.2 %}
+            {% endif %}
+            {{ cwv_meter(cwv.lab_value | default(0), cwv.threshold_good, cwv.threshold_poor, meter_max) }}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">Core Web Vitals data is not available for this page.</p>
+    {% endif %}
+</div>
+
+
+{# =====================================================================
+   4. LOADING TIMELINE (FILMSTRIP)
+   ===================================================================== #}
+{% if filmstrip_frames %}
+<div class="section">
+    <div class="section-header">
+        <span class="section-number">3</span>
+        <h2>Loading Timeline</h2>
+    </div>
+
+    <div class="filmstrip">
+        {% for frame in filmstrip_frames %}
+        <div class="filmstrip__frame">
+            <img src="{{ frame.data_uri | default('') }}" alt="Screenshot at {{ frame.timing_ms | default(0) }}ms">
+            <span class="filmstrip__timestamp">{{ frame.timing_ms | default(0) }} ms</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   5. CRITICAL ISSUES
+   ===================================================================== #}
+{% if critical_issues %}
+<div class="section page-break-before">
+    <div class="section-header">
+        <span class="section-number">{% if filmstrip_frames %}4{% else %}3{% endif %}</span>
+        <h2>Critical Issues</h2>
+    </div>
+
+    <div class="issues-section__heading">
+        <span class="issues-count-badge issues-count-badge--critical">{{ critical_issues | length }}</span>
+        <span class="text-small text-muted">critical issue{{ "s" if critical_issues | length != 1 else "" }} found</span>
+    </div>
+
+    {% for issue in critical_issues %}
+    {{ issue_card(issue, "critical") }}
+    {% endfor %}
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   6. IMPORTANT ISSUES
+   ===================================================================== #}
+{% if important_issues %}
+<div class="section page-break-before">
+    <div class="section-header">
+        <span class="section-number">{% if filmstrip_frames %}5{% else %}4{% endif %}</span>
+        <h2>Important Issues</h2>
+    </div>
+
+    <div class="issues-section__heading">
+        <span class="issues-count-badge issues-count-badge--important">{{ important_issues | length }}</span>
+        <span class="text-small text-muted">important issue{{ "s" if important_issues | length != 1 else "" }} found</span>
+    </div>
+
+    {% for issue in important_issues %}
+    {{ issue_card(issue, "important") }}
+    {% endfor %}
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   7. MINOR ISSUES
+   ===================================================================== #}
+{% if minor_issues %}
+<div class="section">
+    <div class="section-header">
+        <span class="section-number">{% if filmstrip_frames %}6{% else %}5{% endif %}</span>
+        <h2>Minor Issues</h2>
+    </div>
+
+    <div class="issues-section__heading">
+        <span class="issues-count-badge issues-count-badge--minor">{{ minor_issues | length }}</span>
+        <span class="text-small text-muted">minor issue{{ "s" if minor_issues | length != 1 else "" }} found</span>
+    </div>
+
+    {% for issue in minor_issues %}
+    {{ issue_card(issue, "minor") }}
+    {% endfor %}
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   8. CMS-SPECIFIC RECOMMENDATIONS
+   ===================================================================== #}
+{% if cms_name is defined and cms_name != "unknown" %}
+<div class="section page-break-before">
+    <div class="section-header">
+        <span class="section-number">{% if filmstrip_frames %}7{% else %}6{% endif %}</span>
+        <h2>{{ cms_name | title }} Optimization Guide</h2>
+    </div>
+
+    <div class="cms-section">
+        <div class="cms-section__header">
+            {% if cms_name == "wordpress" %}
+            <h3>WordPress-Specific Recommendations</h3>
+            {% elif cms_name == "shopify" %}
+            <h3>Shopify-Specific Recommendations</h3>
+            {% else %}
+            <h3>{{ cms_name | title }} Recommendations</h3>
+            {% endif %}
+        </div>
+
+        <div class="cms-section__content">
+            {% if cms_recommendations %}
+            {{ cms_recommendations }}
+            {% else %}
+                {% if cms_name == "wordpress" %}
+                <h4>Caching &amp; Performance Plugins</h4>
+                <ul>
+                    <li>Install a caching plugin such as WP Rocket, LiteSpeed Cache, or W3 Total Cache.</li>
+                    <li>Enable page caching, browser caching, and GZIP/Brotli compression.</li>
+                    <li>Use an image optimization plugin like ShortPixel or Imagify.</li>
+                </ul>
+                <h4>Theme &amp; Plugin Audit</h4>
+                <ul>
+                    <li>Disable or remove unused plugins to reduce JavaScript and CSS bloat.</li>
+                    <li>Choose a lightweight, performance-oriented theme (GeneratePress, Astra, Kadence).</li>
+                    <li>Avoid page builders that inject excessive inline CSS and JS.</li>
+                </ul>
+                <h4>Server &amp; Hosting</h4>
+                <ul>
+                    <li>Use a managed WordPress host with built-in caching (Cloudways, Kinsta, WP Engine).</li>
+                    <li>Enable a CDN such as Cloudflare, BunnyCDN, or your host's built-in CDN.</li>
+                    <li>Ensure PHP 8.1+ is enabled for improved server-side performance.</li>
+                </ul>
+                {% elif cms_name == "shopify" %}
+                <h4>Theme Optimization</h4>
+                <ul>
+                    <li>Use a speed-optimized Shopify theme (Dawn, Starter, or similar OS 2.0 themes).</li>
+                    <li>Minimize the number of Liquid render blocks and nested loops.</li>
+                    <li>Lazy load product images using the <code>loading="lazy"</code> attribute.</li>
+                </ul>
+                <h4>App Audit</h4>
+                <ul>
+                    <li>Audit installed apps and remove any that inject scripts you no longer use.</li>
+                    <li>Check for apps that load JavaScript on every page even if only used on specific pages.</li>
+                    <li>Prefer apps that use Shopify App Embed blocks over script tag injection.</li>
+                </ul>
+                <h4>Liquid &amp; Asset Optimization</h4>
+                <ul>
+                    <li>Use <code>{% raw %}{{ 'file.js' | asset_url | script_tag }}{% endraw %}</code> with <code>defer</code> for non-critical scripts.</li>
+                    <li>Minimize Liquid render time by reducing complex conditional logic.</li>
+                    <li>Enable Shopify's built-in CDN and ensure images use the <code>image_url</code> filter with size parameters.</li>
+                </ul>
+                {% else %}
+                <p>Review your platform's documentation for performance optimization best practices. Key areas to focus on include caching, image optimization, JavaScript deferral, and reducing third-party scripts.</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   9. IMPLEMENTATION ROADMAP
+   ===================================================================== #}
+{% if roadmap %}
+<div class="section page-break-before">
+    <div class="section-header">
+        {% set roadmap_num = 7 %}
+        {% if filmstrip_frames %}{% set roadmap_num = roadmap_num + 1 %}{% endif %}
+        {% if cms_name is defined and cms_name != "unknown" %}{% set roadmap_num = roadmap_num + 1 %}{% endif %}
+        <span class="section-number">{{ roadmap_num }}</span>
+        <h2>Implementation Roadmap</h2>
+    </div>
+
+    {# Group by effort: Quick Wins (low), Medium Effort, Major Changes (high) #}
+    {% set quick_wins = [] %}
+    {% set medium_effort = [] %}
+    {% set major_changes = [] %}
+    {% set other_items = [] %}
+    {% for item in roadmap %}
+        {% set effort_str = item.effort | default("medium") | lower %}
+        {% if effort_str == "low" %}
+            {% set _ = quick_wins.append(item) %}
+        {% elif effort_str == "medium" %}
+            {% set _ = medium_effort.append(item) %}
+        {% elif effort_str == "high" %}
+            {% set _ = major_changes.append(item) %}
+        {% else %}
+            {% set _ = other_items.append(item) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if quick_wins %}
+    <div class="roadmap-group">
+        <h3 class="roadmap-group__title">Quick Wins (Low Effort, High Impact)</h3>
+        {% for item in quick_wins %}
+        <div class="roadmap-item no-break">
+            <div class="roadmap-item__checkbox"></div>
+            <div class="roadmap-item__body">
+                <div class="roadmap-item__title">{{ item.title | default("Action Item") }}</div>
+                {% if item.description %}
+                <div class="roadmap-item__description">{{ item.description }}</div>
+                {% endif %}
+                <div class="roadmap-item__tags">
+                    <span class="tag tag--effort-low">Low Effort</span>
+                    {% if item.impact %}
+                    <span class="tag tag--impact-{{ item.impact | default('medium') | lower }}">{{ item.impact | title }} Impact</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if medium_effort %}
+    <div class="roadmap-group">
+        <h3 class="roadmap-group__title">Medium Effort</h3>
+        {% for item in medium_effort %}
+        <div class="roadmap-item no-break">
+            <div class="roadmap-item__checkbox"></div>
+            <div class="roadmap-item__body">
+                <div class="roadmap-item__title">{{ item.title | default("Action Item") }}</div>
+                {% if item.description %}
+                <div class="roadmap-item__description">{{ item.description }}</div>
+                {% endif %}
+                <div class="roadmap-item__tags">
+                    <span class="tag tag--effort-medium">Medium Effort</span>
+                    {% if item.impact %}
+                    <span class="tag tag--impact-{{ item.impact | default('medium') | lower }}">{{ item.impact | title }} Impact</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if major_changes %}
+    <div class="roadmap-group">
+        <h3 class="roadmap-group__title">Major Changes (High Effort)</h3>
+        {% for item in major_changes %}
+        <div class="roadmap-item no-break">
+            <div class="roadmap-item__checkbox"></div>
+            <div class="roadmap-item__body">
+                <div class="roadmap-item__title">{{ item.title | default("Action Item") }}</div>
+                {% if item.description %}
+                <div class="roadmap-item__description">{{ item.description }}</div>
+                {% endif %}
+                <div class="roadmap-item__tags">
+                    <span class="tag tag--effort-high">High Effort</span>
+                    {% if item.impact %}
+                    <span class="tag tag--impact-{{ item.impact | default('medium') | lower }}">{{ item.impact | title }} Impact</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if other_items %}
+    <div class="roadmap-group">
+        <h3 class="roadmap-group__title">Additional Recommendations</h3>
+        {% for item in other_items %}
+        <div class="roadmap-item no-break">
+            <div class="roadmap-item__checkbox"></div>
+            <div class="roadmap-item__body">
+                <div class="roadmap-item__title">{{ item.title | default("Action Item") }}</div>
+                {% if item.description %}
+                <div class="roadmap-item__description">{{ item.description }}</div>
+                {% endif %}
+                <div class="roadmap-item__tags">
+                    {% if item.effort %}
+                    <span class="tag">{{ item.effort | title }} Effort</span>
+                    {% endif %}
+                    {% if item.impact %}
+                    <span class="tag tag--impact-{{ item.impact | default('medium') | lower }}">{{ item.impact | title }} Impact</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   10. PAGE STATISTICS
+   ===================================================================== #}
+{% if page_stats %}
+<div class="section page-break-before">
+    <div class="section-header">
+        {% set stats_num = 8 %}
+        {% if filmstrip_frames %}{% set stats_num = stats_num + 1 %}{% endif %}
+        {% if cms_name is defined and cms_name != "unknown" %}{% set stats_num = stats_num + 1 %}{% endif %}
+        <span class="section-number">{{ stats_num }}</span>
+        <h2>Page Statistics</h2>
+    </div>
+
+    {# Key numbers grid #}
+    <div class="page-stats-grid">
+        <div class="stat-card no-break">
+            <div class="stat-card__value">{{ page_stats.total_requests | default(0) }}</div>
+            <div class="stat-card__label">Total Requests</div>
+        </div>
+        <div class="stat-card no-break">
+            <div class="stat-card__value">{{ page_stats.total_bytes_display | default("0 KB") }}</div>
+            <div class="stat-card__label">Page Weight</div>
+        </div>
+        <div class="stat-card no-break">
+            <div class="stat-card__value">{{ page_stats.dom_elements | default(0) }}</div>
+            <div class="stat-card__label">DOM Elements</div>
+        </div>
+    </div>
+
+    {# Resource breakdown by type #}
+    {% if page_stats.total_bytes is defined and page_stats.total_bytes > 0 %}
+    <div class="resource-breakdown">
+        <div class="resource-breakdown__title">Resource Breakdown</div>
+
+        {% set total = page_stats.total_bytes | default(1) | float %}
+
+        {% if page_stats.html_bytes is defined and page_stats.html_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">HTML</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--html" style="width: {{ ((page_stats.html_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.html_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+
+        {% if page_stats.css_bytes is defined and page_stats.css_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">CSS</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--css" style="width: {{ ((page_stats.css_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.css_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+
+        {% if page_stats.js_bytes is defined and page_stats.js_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">JavaScript</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--js" style="width: {{ ((page_stats.js_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.js_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+
+        {% if page_stats.image_bytes is defined and page_stats.image_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">Images</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--images" style="width: {{ ((page_stats.image_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.image_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+
+        {% if page_stats.font_bytes is defined and page_stats.font_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">Fonts</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--fonts" style="width: {{ ((page_stats.font_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.font_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+
+        {% set other_bytes = page_stats.total_bytes - (page_stats.html_bytes | default(0)) - (page_stats.css_bytes | default(0)) - (page_stats.js_bytes | default(0)) - (page_stats.image_bytes | default(0)) - (page_stats.font_bytes | default(0)) %}
+        {% if other_bytes > 0 %}
+        <div class="resource-bar">
+            <span class="resource-bar__label">Other</span>
+            <div class="resource-bar__track">
+                <div class="resource-bar__fill resource-bar__fill--other" style="width: {{ ((other_bytes / total) * 100) | round(1) }}%;"></div>
+            </div>
+            <span class="resource-bar__size">{{ page_stats.other_bytes_display | default("0 KB") }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# Final rendered screenshot #}
+    {% if final_screenshot %}
+    <div class="final-screenshot mt-lg">
+        <img src="{{ final_screenshot }}" alt="Final rendered page screenshot">
+        <div class="final-screenshot__caption">Final rendered state of the page</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+
+{# =====================================================================
+   FOOTER
+   ===================================================================== #}
+<div class="report-footer">
+    <p class="report-footer__text">
+        Generated by <span class="report-footer__brand">{{ company_name | default("Speed Audit") }}</span>
+        {% if contact_email %}
+        &nbsp;&middot;&nbsp; <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+        {% endif %}
+        &nbsp;&middot;&nbsp; {{ date | default("N/A") }}
+    </p>
+</div>
+
+</div>{# /.report-container #}
+</body>
+</html>
