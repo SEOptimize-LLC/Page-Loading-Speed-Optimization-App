@@ -198,6 +198,7 @@ class ReportGenerator:
                     "lab_value": lab_value,
                     "lab_display": lab_display,
                     "field_value": field_display,
+                    "field_value_raw": a.field_value,
                     "field_category": a.field_category,
                     "status": status_str,
                     "status_color": status_color,

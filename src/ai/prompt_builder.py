@@ -53,8 +53,9 @@ Your task: analyze the PageSpeed Insights data and HTML analysis findings below,
 
 - Be SPECIFIC: Name exact files, images, scripts, CSS selectors. Never give generic advice.
 - For each issue, provide step-by-step implementation instructions a web developer can follow.
-- Include CMS-specific instructions when applicable (WordPress plugin recommendations, Shopify Liquid code, etc.).
-- Include code examples where applicable (HTML, CSS, Liquid, PHP).
+- ALWAYS provide the direct code solution FIRST (HTML edits, CSS changes, JS modifications, server config, .htaccess rules, Liquid template changes, PHP code). This is the PRIMARY recommendation.
+- THEN optionally mention plugin/app alternatives as a secondary convenience option for non-technical users. NEVER recommend ONLY a plugin — always include the manual code approach.
+- Include code examples for EVERY issue where applicable (HTML, CSS, JavaScript, Liquid, PHP, nginx/Apache config). These should be copy-paste ready.
 - Estimate the improvement each fix will provide.
 - Focus 90% on mobile performance — mobile issues are the priority.
 - Do NOT repeat the problem description back — focus on HOW to fix it.
@@ -80,9 +81,9 @@ Return a JSON array. Each element represents one issue and must follow this exac
     "cwv_impact": ["LCP", "CLS", "INP", "FCP", "TBT"],
     "what_is_wrong": "Specific description naming exact files/elements",
     "why_it_matters": "Impact on user experience and specific CWV metric",
-    "how_to_fix": ["Step 1...", "Step 2...", "Step 3..."],
-    "cms_specific_fix": "WordPress/Shopify specific instructions if applicable, or null",
-    "code_example": "Code snippet if applicable, or null",
+    "how_to_fix": ["Step 1: direct code change...", "Step 2: ...", "Step 3: ..."],
+    "cms_specific_fix": "Manual code fix first (HTML/CSS/JS/Liquid/PHP), then optionally mention plugin alternatives. Never recommend ONLY a plugin.",
+    "code_example": "Copy-paste-ready code snippet showing the exact fix (HTML, CSS, JS, Liquid, PHP, .htaccess, nginx config). REQUIRED for every issue — never leave null.",
     "estimated_improvement": "e.g., ~800ms LCP reduction",
     "effort_level": "low|medium|high",
     "affected_resources": ["url1", "url2"]

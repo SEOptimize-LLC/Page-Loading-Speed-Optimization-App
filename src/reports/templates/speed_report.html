@@ -141,12 +141,12 @@
     </div>
     {% endif %}
 
-    {# Code example #}
+    {# Code example — escape HTML so tags display as text #}
     {% if issue.code_example %}
     <div class="issue-section">
         <div class="issue-section__label">Code Example</div>
         <div class="code-block">
-            <code>{{ issue.code_example }}</code>
+            <code>{{ issue.code_example | e }}</code>
         </div>
     </div>
     {% endif %}
@@ -157,7 +157,7 @@
         <div class="issue-section__label">Affected Resources ({{ issue.affected_resources | length }})</div>
         <ul class="affected-resources__list">
             {% for resource in issue.affected_resources[:15] %}
-            <li>{{ resource }}</li>
+            <li>{{ resource | e }}</li>
             {% endfor %}
             {% if issue.affected_resources | length > 15 %}
             <li class="text-muted">... and {{ issue.affected_resources | length - 15 }} more</li>
@@ -289,11 +289,16 @@
                 {{ status_badge(cwv.status) }}
             </div>
 
+            {# Primary value: prefer field (real user) data, fall back to lab #}
             <div class="cwv-card__value {{ value_color_class(cwv.status) }}">
+                {% if cwv.field_value is defined and cwv.field_value is not none %}
+                {{ cwv.field_value }}
+                {% else %}
                 {{ cwv.lab_display | default(cwv.lab_value | default("N/A")) }}
+                {% endif %}
             </div>
 
-            {# Field vs lab comparison #}
+            {# Secondary comparison line #}
             {% if cwv.field_value is defined and cwv.field_value is not none %}
             <div class="cwv-card__field-comparison">
                 Field data (real users): <span>{{ cwv.field_value }}</span>
@@ -307,13 +312,14 @@
             </div>
             {% endif %}
 
-            {# Threshold meter #}
+            {# Threshold meter — use field value when available #}
             {% if cwv.threshold_good is defined and cwv.threshold_poor is defined %}
+            {% set meter_value = cwv.field_value_raw | default(cwv.lab_value | default(0)) %}
             {% set meter_max = cwv.threshold_poor * 2 %}
-            {% if cwv.lab_value is defined and cwv.lab_value is not none and cwv.lab_value > meter_max %}
-                {% set meter_max = cwv.lab_value * 1.2 %}
+            {% if meter_value is defined and meter_value is not none and meter_value > meter_max %}
+                {% set meter_max = meter_value * 1.2 %}
             {% endif %}
-            {{ cwv_meter(cwv.lab_value | default(0), cwv.threshold_good, cwv.threshold_poor, meter_max) }}
+            {{ cwv_meter(meter_value, cwv.threshold_good, cwv.threshold_poor, meter_max) }}
             {% endif %}
         </div>
         {% endfor %}

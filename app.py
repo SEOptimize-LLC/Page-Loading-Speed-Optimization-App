@@ -928,22 +928,22 @@ def main() -> None:
         with col_s1:
             if psi_key:
                 st.markdown(
-                    ":green_circle: **PSI API**", help="PageSpeed Insights key found"
+                    "\U0001f7e2 **PSI API**", help="PageSpeed Insights key found"
                 )
             else:
                 st.markdown(
-                    ":red_circle: **PSI API**",
+                    "\U0001f534 **PSI API**",
                     help="Missing PAGESPEED_API_KEY in .env or secrets",
                 )
         with col_s2:
             if or_key:
                 st.markdown(
-                    ":green_circle: **AI (LLM)**",
+                    "\U0001f7e2 **AI (LLM)**",
                     help="OpenRouter API key found",
                 )
             else:
                 st.markdown(
-                    ":orange_circle: **AI (LLM)**",
+                    "\U0001f7e0 **AI (LLM)**",
                     help="Missing OPENROUTER_API_KEY -- AI features disabled",
                 )
 
