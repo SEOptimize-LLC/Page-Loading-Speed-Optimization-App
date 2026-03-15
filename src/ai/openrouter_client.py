@@ -34,12 +34,14 @@ class OpenRouterClient:
 
     # Available models for performance analysis
     MODELS = {
-        "gemini-flash": "google/gemini-2.0-flash-001",
-        "claude-sonnet": "anthropic/claude-sonnet-4-5-20250514",
+        "gpt-5.4": "openai/gpt-5.4",
         "gpt-4.1-mini": "openai/gpt-4.1-mini",
+        "claude-sonnet": "anthropic/claude-sonnet-4.6",
+        "gemini-3.1-pro": "google/gemini-3.1-pro-preview",
+        "grok-4.1-fast": "x-ai/grok-4.1-fast",
     }
 
-    DEFAULT_MODEL = "google/gemini-2.0-flash-001"
+    DEFAULT_MODEL = "openai/gpt-4.1-mini"
 
     def __init__(self, api_key: str, default_model: Optional[str] = None):
         """Initialize the client.

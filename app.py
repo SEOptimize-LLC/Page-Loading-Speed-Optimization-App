@@ -80,9 +80,11 @@ from utils.formatting import format_bytes, format_ms, score_color
 # Model options for the sidebar dropdown
 # ---------------------------------------------------------------------------
 MODEL_OPTIONS = {
-    "Gemini 2.0 Flash (fast, default)": "google/gemini-2.0-flash-001",
-    "Claude Sonnet 4.5 (best reasoning)": "anthropic/claude-sonnet-4-5-20250514",
-    "GPT-4.1 Mini (balanced)": "openai/gpt-4.1-mini",
+    "GPT-4.1 Mini (fast, default)": "openai/gpt-4.1-mini",
+    "GPT-5.4 (most capable)": "openai/gpt-5.4",
+    "Claude Sonnet 4.6 (best reasoning)": "anthropic/claude-sonnet-4.6",
+    "Gemini 3.1 Pro Preview (Google)": "google/gemini-3.1-pro-preview",
+    "Grok 4.1 Fast (xAI)": "x-ai/grok-4.1-fast",
 }
 
 # =========================================================================
@@ -1038,7 +1040,7 @@ def main() -> None:
                 result_obj, report_html, pdf_bytes = run_analysis(
                     normalized_or_error,
                     model=st.session_state.get(
-                        "selected_model", "google/gemini-2.0-flash-001"
+                        "selected_model", "openai/gpt-4.1-mini"
                     ),
                     progress_bar=progress_bar,
                     status_text=status_text,
